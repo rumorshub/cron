@@ -1,0 +1,29 @@
+cron:
+  max_concurrent_jobs: 5 # default: the number of logical CPUs
+  tags_unique: false
+  wait_for_schedule_all: false
+  wait_for_schedule: false
+  locker: # if present
+    tries: 32
+    drift_factor: 0.01
+    timeout_factor: 0.05
+    expiry: 8s
+    retry_delay: # default: is not set
+
+redis: # for all options look inside redis.UniversalOptions struct
+  cron:
+    addrs:
+      - 127.0.0.1:26379
+    username:
+    password:
+    ping: false
+
+log:
+  channels:
+    cron:
+      add_source: false
+      level: info
+      encoding: json
+      output_paths:
+        - stderr
+      attributes: { }

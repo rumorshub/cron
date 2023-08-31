@@ -4,17 +4,11 @@ import (
 	"context"
 	"sync"
 
-	"github.com/go-co-op/gocron"
-	redislock "github.com/go-co-op/gocron-redis-lock"
 	"github.com/roadrunner-server/endure/v2/dep"
 	"github.com/roadrunner-server/errors"
 )
 
-const (
-	PluginName = "cron"
-
-	lockerKey = PluginName + ".locker"
-)
+const PluginName = "cron"
 
 type Plugin struct {
 	mu sync.RWMutex
@@ -23,7 +17,7 @@ type Plugin struct {
 	tasks     []Task
 }
 
-func (p *Plugin) Init(cfg Configurer, maker RedisMaker, logger Logger) error {
+func (p *Plugin) Init(cfg Configurer, logger Logger) error {
 	const op = errors.Op("cron_plugin_init")
 
 	if !cfg.Has(PluginName) {
@@ -35,30 +29,13 @@ func (p *Plugin) Init(cfg Configurer, maker RedisMaker, logger Logger) error {
 		return errors.E(op, err)
 	}
 
-	var locker gocron.Locker
-	if cfg.Has(lockerKey) {
-		var lc LockerConfig
-		if err := cfg.UnmarshalKey(lockerKey, &lc); err != nil {
-			return errors.E(op, err)
-		}
-
-		client, err := maker.MakeRedis(PluginName)
-		if err != nil {
-			return errors.E(op, err)
-		}
-
-		locker, err = redislock.NewRedisLocker(client, lc.Options()...)
-		if err != nil {
-			return errors.E(op, err)
-		}
-	}
-
-	p.scheduler = newScheduler(c, locker, logger.NamedLogger(PluginName).WithGroup("scheduler"))
+	p.scheduler = newScheduler(c, logger.NamedLogger(PluginName).WithGroup("scheduler"))
 
 	return nil
 }
 
 func (p *Plugin) Serve() chan error {
+	const op = errors.Op("cron_plugin_serve")
 	errCh := make(chan error, 1)
 
 	p.scheduler.StartAsync()
@@ -69,7 +46,7 @@ func (p *Plugin) Serve() chan error {
 
 		for _, task := range p.tasks {
 			if _, err := p.scheduler.addTask(task); err != nil {
-				errCh <- err
+				errCh <- errors.E(op, err)
 				break
 			}
 		}

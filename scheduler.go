@@ -15,6 +15,8 @@ var _ Scheduler = (*scheduler)(nil)
 var ErrExpressionEmpty = errors.New("expression is empty")
 
 type Scheduler interface {
+	WithDistributedLocker(locker gocron.Locker)
+
 	StartAsync()
 	Stop()
 	IsRunning() bool
@@ -46,7 +48,7 @@ type scheduler struct {
 	taskLog         *slog.Logger
 }
 
-func newScheduler(cfg Config, locker gocron.Locker, log *slog.Logger) *scheduler {
+func newScheduler(cfg Config, log *slog.Logger) *scheduler {
 	cfg.InitDefaults()
 
 	s := gocron.NewScheduler(time.UTC)
@@ -58,10 +60,6 @@ func newScheduler(cfg Config, locker gocron.Locker, log *slog.Logger) *scheduler
 
 	if cfg.WaitForScheduleAll {
 		s.WaitForScheduleAll()
-	}
-
-	if locker != nil {
-		s.WithDistributedLocker(locker)
 	}
 
 	return &scheduler{
